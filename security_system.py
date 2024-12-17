@@ -1,150 +1,137 @@
-# import cv2
-# import logging
-# from config import SecurityConfig
-# from thermal_analyzer import ThermalAnalyzer
-# from face_analyzer import FaceAnalyzer
-# from movement_analyzer import MovementAnalyzer
-# from imposter_detector import ImposterDetector
-# from ultralytics import YOLO
-
-# logger = logging.getLogger(__name__)
-
-# class SecuritySystem:
-#     """Main security system for imposter detection"""
-#     def __init__(self):
-#         self.config = SecurityConfig()
-#         self.thermal_analyzer = ThermalAnalyzer(self.config)
-#         self.face_analyzer = FaceAnalyzer(self.config)
-#         self.movement_analyzer = MovementAnalyzer(self.config)
-#         self.imposter_detector = ImposterDetector(self.thermal_analyzer, self.face_analyzer, self.movement_analyzer)
-        
-#     def start_monitoring(self):
-#         """Start video monitoring and detection"""
-#         try:
-#             # Initialize video capture
-#             cap = cv2.VideoCapture(camera_url)
-#             while cap.isOpened():
-#                 ret, frame = cap.read()
-#                 if not ret:
-#                     break
-                
-#                 # Use YOLOv8 to detect people in frame
-#                 self.model = YOLO('yolov8n.pt')
-                
-#                 results = self.model(frame, model='yolov8n')
-                
-#                 # Get bounding box coordinates of detected person
-#                 detection_box = None
-#                 for r in results:
-#                     boxes = r.boxes
-#                     for box in boxes:
-#                         # YOLOv8 returns class predictions - check if person (class 0)
-#                         if box.cls == 0:
-#                             # Convert box coordinates to [x1,y1,x2,y2] format
-#                             x1, y1, x2, y2 = box.xyxy[0]
-#                             detection_box = [int(x1), int(y1), int(x2), int(y2)]
-#                             print(detection_box)
-#                             break
-#                     if detection_box:
-#                         break
-#                 # detection_box = [100, 100, 330, 330]
-                
-#                 # Skip detection if no person found
-#                 if not detection_box:
-#                     continue
-                
-#                 is_imposter, score = self.imposter_detector.detect_imposter(frame, detection_box)
-#                 if is_imposter:
-#                     logger.warning(f"Imposter detected! Score: {score}")
-                
-#                 # Display frame for monitoring
-#                 cv2.imshow("Security System", frame)
-#                 if cv2.waitKey(1) & 0xFF == ord('q'):
-#                     break
-            
-#             cap.release()
-#             cv2.destroyAllWindows()
-        
-#         except Exception as e:
-#             logger.error(f"Error in security system: {str(e)}")
-
-
-
 import cv2
 import logging
+import threading
+import numpy as np
 from config import SecurityConfig
 from thermal_analyzer import ThermalAnalyzer
 from face_analyzer import FaceAnalyzer
 from movement_analyzer import MovementAnalyzer
 from imposter_detector import ImposterDetector
 from ultralytics import YOLO
+import time
 
-logger = logging.getLogger(__name__)
-
-print('......... Loading Security System')
 class SecuritySystem:
-    """Main security system for imposter detection"""
     def __init__(self):
+        # Initialize configuration
         self.config = SecurityConfig()
+        
+        # Initialize YOLO model
+        self.model = YOLO('yolov8n.pt')  # Replace 'yolov8n.pt' with your YOLOv8 model path
+        
+        # Initialize analyzers
         self.thermal_analyzer = ThermalAnalyzer(self.config)
         self.face_analyzer = FaceAnalyzer(self.config)
         self.movement_analyzer = MovementAnalyzer(self.config)
-        self.imposter_detector = ImposterDetector(self.thermal_analyzer, self.face_analyzer, self.movement_analyzer)
-        self.model = YOLO('yolov8n.pt')  # Load YOLO model once during initialization
         
-    def start_monitoring(self, camera_url="0"):
-        """Start video monitoring and detection
+        # Initialize imposter detector
+        self.imposter_detector = ImposterDetector(
+            self.thermal_analyzer, 
+            self.face_analyzer, 
+            self.movement_analyzer
+        )
+        
+        # Logger setup
+        self.logger = logging.getLogger(__name__)
+        logging.basicConfig(level=logging.INFO)
+
+    def process_multi_camera_frames(self, camera_frames):
+        """
+        Process frames from multiple cameras
         
         Args:
-            camera_url (str): URL of the network camera or "0" for local webcam.
+            camera_frames (dict): Dictionary of camera names and their frames
         """
-        print('......... Loading Camera System')
-        try:
-            # Initialize video capture
-            cap = cv2.VideoCapture(camera_url)
-            if not cap.isOpened():
-                logger.error("Unable to connect to the camera. Please check the URL.")
-                return
-            
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret:
-                    break
+        for camera_name, frame in camera_frames.items():
+            try:
+                # Detect persons
+                persons = self._detect_persons(frame)
                 
-                # Use YOLOv8 to detect people in frame
-                results = self.model(frame, model='yolov8n')
+                for person in persons:
+                    # Analyze each detected person
+                    is_imposter, confidence = self._analyze_person(frame, person, camera_name)
+                    
+                    # Visualize results
+                    self._visualize_detection(frame, person, is_imposter, confidence)
                 
-                # Get bounding box coordinates of detected person
-                detection_box = None
-                for r in results:
-                    boxes = r.boxes
-                    for box in boxes:
-                        # YOLOv8 returns class predictions - check if person (class 0)
-                        if box.cls == 0:
-                            # Convert box coordinates to [x1, y1, x2, y2] format
-                            x1, y1, x2, y2 = box.xyxy[0]
-                            detection_box = [int(x1), int(y1), int(x2), int(y2)]
-                            logger.info(f"Detection box: {detection_box}")
-                            break
-                    if detection_box:
-                        break
-                
-                # Skip detection if no person found
-                if not detection_box:
-                    continue
-                
-                # Analyze the detected person
-                is_imposter, score = self.imposter_detector.detect_imposter(frame, detection_box)
-                if is_imposter:
-                    logger.warning(f"Imposter detected! Score: {score}")
-                
-                # Display frame for monitoring
-                cv2.imshow("Security System", frame)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-            
-            cap.release()
-            cv2.destroyAllWindows()
+            except Exception as e:
+                self.logger.error(f"Error processing camera {camera_name}: {str(e)}")
+
+    def _detect_persons(self, frame):
+        """
+        Detect persons in a frame using YOLOv8
         
-        except Exception as e:
-            logger.error(f"Error in security system: {str(e)}")
+        Args:
+            frame (numpy.ndarray): Video frame
+        
+        Returns:
+            list: List of bounding boxes for detected persons
+        """
+        # Detect objects in the frame
+        results = self.model(frame)
+
+        # Extract bounding boxes for persons (class index 0)
+        person_bboxes = []
+        for result in results:
+            for box in result.boxes:
+                if box.cls == 0:  # Class index 0 corresponds to 'person'
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])  # Convert to integers
+                    person_bboxes.append({'bbox': [x1, y1, x2, y2]})
+        
+        return person_bboxes
+
+    def _analyze_person(self, frame, person, camera_name):
+        """
+        Analyze a detected person
+        
+        Args:
+            frame (numpy.ndarray): Video frame
+            person (dict): Person detection information
+            camera_name (str): Name of the camera
+        
+        Returns:
+            tuple: (is_imposter, confidence)
+        """
+        # Detect imposter using multi-modal analysis
+        is_imposter, confidence = self.imposter_detector.detect_imposter(
+            frame, 
+            person['bbox'], 
+            camera_name
+        )
+        
+        return is_imposter, confidence
+
+    def _visualize_detection(self, frame, person, is_imposter, confidence):
+        """
+        Visualize detection results on the frame
+        
+        Args:
+            frame (numpy.ndarray): Video frame
+            person (dict): Person detection information
+            is_imposter (bool): Whether the person is an imposter
+            confidence (float): Imposter detection confidence
+        """
+        bbox = person['bbox']
+        
+        # Choose color based on imposter status
+        color = (0, 0, 255) if is_imposter else (0, 255, 0)  # Red for imposter, Green for normal
+        
+        # Draw bounding box
+        cv2.rectangle(
+            frame, 
+            (int(bbox[0]), int(bbox[1])), 
+            (int(bbox[2]), int(bbox[3])), 
+            color, 
+            2
+        )
+        
+        # Add label
+        label = f"Imposter: {confidence:.2f}" if is_imposter else "Normal"
+        cv2.putText(
+            frame, 
+            label, 
+            (int(bbox[0]), int(bbox[1]-10)), 
+            cv2.FONT_HERSHEY_SIMPLEX, 
+            0.9, 
+            color, 
+            2
+        )
