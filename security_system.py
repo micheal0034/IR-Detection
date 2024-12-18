@@ -27,7 +27,8 @@ class SecuritySystem:
         self.imposter_detector = ImposterDetector(
             self.thermal_analyzer, 
             self.face_analyzer, 
-            self.movement_analyzer
+            self.movement_analyzer,
+            self.config
         )
         
         # Logger setup

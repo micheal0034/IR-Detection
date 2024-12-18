@@ -19,6 +19,7 @@ class SecurityConfig:
         self.FACE_DETECTION_THRESHOLD = 0.75
         self.THERMAL_ANOMALY_THRESHOLD = 0.8
         self.MOVEMENT_ANOMALY_THRESHOLD = 0.7
+        self.FACE_CONCEALMENT_THRESHOLD = 0.75
         
         # Paths
         self.PERSON_MODEL_PATH = 'model/mobilenet_v2_thermal.tflite'

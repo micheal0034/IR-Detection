@@ -62,7 +62,8 @@ class ImposterDetector:
                     
                     # Suspicious if close distance and within tracking window
                     if distance < 100 and time_diff < 300:  # 100 pixel proximity, 5-minute window
-                        logging.warning(f"Suspicious cross-camera movement detected")
+                        logging.warning(f"Suspicious cross-camera movement detected. "
+                f"Imposter detected in camera: {current_camera}")
     
     def _calculate_distance(self, point1, point2):
         """Calculate Euclidean distance between two points"""
@@ -75,3 +76,5 @@ class ImposterDetector:
                 entry_time = self.camera_tracking[camera][obj_id]['timestamp']
                 if (current_time - entry_time) > self.tracking_timeout:
                     del self.camera_tracking[camera][obj_id]
+
+
