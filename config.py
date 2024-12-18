@@ -7,9 +7,9 @@ class SecurityConfig:
         self.CAMERA_IDS = {
             'cam1': "rtsp://admin:amazingct123@192.168.0.160:554/Streaming/Channels/101",
             'cam2': "rtsp://admin:amazingct123@192.168.0.160:554/Streaming/Channels/201",
-            # 'cam3': 2
+            'cam3': 0
         }
-        
+
         self.FRAME_WIDTH = 640
         self.FRAME_HEIGHT = 480
         self.DETECTION_INTERVAL = 0.1

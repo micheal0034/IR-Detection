@@ -16,7 +16,7 @@ class SecuritySystem:
         self.config = SecurityConfig()
         
         # Initialize YOLO model
-        self.model = YOLO('yolov8n.pt')  # Replace 'yolov8n.pt' with your YOLOv8 model path
+        self.model = YOLO('yolov8n.pt')
         
         # Initialize analyzers
         self.thermal_analyzer = ThermalAnalyzer(self.config)

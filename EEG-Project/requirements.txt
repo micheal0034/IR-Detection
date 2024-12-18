@@ -1,6 +1,0 @@
-streamlit
-pandas
-joblib
-PyPDF2
-reportlab
-matplotlib

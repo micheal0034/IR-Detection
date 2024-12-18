@@ -1,21 +1,3 @@
-# from security_system import SecuritySystem
-# from utils import setup_logging
-
-# def main():
-#     # Setup logging
-#     logger = setup_logging()
-
-#     # Initialize the security system
-#     security_system = SecuritySystem()
-
-#     logger.info("Starting the security system...")
-#     security_system.start_monitoring()
-
-# if __name__ == "__main__":
-#     main()
-
-
-
 from security_system import SecuritySystem
 from utils import setup_logging
 import cv2
@@ -31,7 +13,7 @@ def main():
     cameras = {
         'cam1': "rtsp://admin:amazingct123@192.168.0.160:554/Streaming/Channels/101",
         'cam2': "rtsp://admin:amazingct123@192.168.0.160:554/Streaming/Channels/201",
-        # 'cam3': 2
+        'cam3': 0
     }
 
     # Open video captures for multiple cameras
